@@ -64,7 +64,7 @@ ax2.plot_date(dates, daily_data['Volume'], '-', label='Volume', color='tab:purpl
 
 # Add a title and legend.
 plt.title('Stock Price and Volume')
-fig.legend(loc="upper left", bbox_to_anchor=(0.1, 0.9))
+fig.legend(loc="right", bbox_to_anchor=(0.9, 0.5))
 
 # Use tight layout to fit everything neatly.
 plt.tight_layout()
