@@ -1,81 +1,91 @@
 import pandas as pd
-import ast
+
+# Read the newly provided LOB data, adjusting for the updated indexing
+lob_csv_path = '../lob_full2.csv'  # Updated file path
+
+# Reading the updated LOB CSV file into a pandas DataFrame
+lob_df = pd.read_csv(lob_csv_path)
+lob_df.columns = ['Timestamp', 'Bid', 'Ask']
+lob_df['Bid'] = lob_df['Bid'].apply(lambda x: eval(x) if x.startswith('[') else [])
+lob_df['Ask'] = lob_df['Ask'].apply(lambda x: eval(x) if x.startswith('[') else [])
+
+# Correcting tape data reading, including the first row as actual data
+tape_csv_path = '../Tapes/UoB_Set01_2025-01-02tapes.csv'  # Tape file path remains the same
+tape_df = pd.read_csv(tape_csv_path, header=None, skiprows=0)
+tape_df.columns = ['Timestamp', 'Price', 'Volume']
+
+tape_df['Price'] = tape_df['Price'].astype(int)
+tape_df['Volume'] = tape_df['Volume'].astype(int)
 
 
-# Function to parse the 'Bid' and 'Ask' columns from string representation to lists
-def parse_bid_ask_columns(row):
-    row['Bid'] = ast.literal_eval(row['Bid'])
-    row['Ask'] = ast.literal_eval(row['Ask'])
-    return row
+def merge_data(tape_df, lob_df):
+    # Initialize merged data list
+    merged_data = []
+    tape_idx, lob_idx = 0, 0
+
+    while tape_idx < len(tape_df) and lob_idx < len(lob_df):
+        # Get the current row of tape and LOB data
+        tape_row = tape_df.iloc[tape_idx]
+        lob_row = lob_df.iloc[lob_idx]
+        bids, asks = lob_row['Bid'], lob_row['Ask']
+        price, volume = int(tape_row['Price']), int(tape_row['Volume'])
+
+        if tape_row['Timestamp'] < lob_row['Timestamp']:
+            price_in_bid = any(price == bid[0] for bid in merged_data[-1][1])
+            price_in_ask = any(price == ask[0] for ask in merged_data[-1][2])
+            # Tape data comes before LOB data, insert tape data into new LOB row
+            new_bid = [price, volume]
+            new_ask = [price, volume]
+            new_bids = merged_data[-1][1].copy()
+            new_asks = (merged_data[-1][2].copy())
+            if price_in_ask:
+                new_bids.insert(0, new_bid)
+            if price_in_bid:
+                new_asks.insert(0, new_ask)
+            merged_data.append([tape_row['Timestamp'], new_bids, new_asks])
+            tape_idx += 1
+        elif tape_row['Timestamp'] == lob_row['Timestamp']:
+            # Check for price in bids or asks and adjust accordingly
+            price_in_bid = any(price == bid[0] for bid in bids)
+            price_in_ask = any(price == ask[0] for ask in asks)
+            if price_in_bid:
+                # If price is in bid, add transaction to start of ask list
+                asks.insert(0, [price, volume])
+            if price_in_ask:
+                # If price is in ask, add transaction to start of bid list
+                bids.insert(0, [price, volume])
+            # Add the modified LOB row to merged data
+            merged_data.append([lob_row['Timestamp'], bids, asks])
+            tape_idx += 1
+            lob_idx += 1
+        else:
+            # LOB data comes before tape data, add LOB data to merged data
+            merged_data.append([lob_row['Timestamp'], bids, asks])
+            lob_idx += 1
+
+    # Handle remaining data in either dataset
+    while tape_idx < len(tape_df):
+        tape_row = tape_df.iloc[tape_idx]
+        # Assuming inheritance of bid/ask from the last entry of merged_data if available
+        last_bids, last_asks = merged_data[-1][1:3] if merged_data else ([], [])
+        new_bid = [price, volume]
+        new_ask = [price, volume]
+        # Insert the transaction at the start of both bid and ask lists
+        merged_data.append([tape_row['Timestamp'], [new_bid] + last_bids, [new_ask] + last_asks])
+        tape_idx += 1
+
+    while lob_idx < len(lob_df):
+        lob_row = lob_df.iloc[lob_idx]
+        bids = (lob_row['Bid'])
+        asks = (lob_row['Ask'])
+        merged_data.append([lob_row['Timestamp'], bids, asks])
+        lob_idx += 1
+
+    # Convert the merged data to a DataFrame
+    merged_df = pd.DataFrame(merged_data, columns=['Timestamp', 'Bid', 'Ask'])
+    return merged_df
 
 
-# Load the tape data
-tape_data_path = 'tape_short.csv'
-tape_data = pd.read_csv(tape_data_path, header=None)
-tape_data.columns = ['Timestamp', 'Price', 'Volume']
-
-# Load the LOB data
-lob_data_path = 'lob_short.csv'
-lob_data = pd.read_csv(lob_data_path)
-
-# Apply the parsing function to the LOB data
-lob_data = lob_data.apply(parse_bid_ask_columns, axis=1)
-
-# Convert LOB data to a list of dictionaries for easier manipulation
-lob_data_list = lob_data.to_dict('records')
-
-
-# Function to find the index in the LOB data where a new row should be inserted
-def find_insert_index(timestamp):
-    for i, row in enumerate(lob_data_list):
-        if timestamp < row['Timestamp']:
-            return i
-    return len(lob_data_list)
-
-
-# Adjust the tape data to ensure 'Price' and 'Volume' are integers
-tape_data['Price'] = tape_data['Price'].astype(int)
-tape_data['Volume'] = tape_data['Volume'].astype(int)
-
-
-# Now, let's proceed with the merging operation as before, ensuring the data types match.
-# The rest of the code remains the same.
-
-# Function to update or insert a row based on tape transaction, now ensuring data types match
-def merge_transaction(transaction):
-    global lob_data_list
-    timestamp, price, volume = transaction
-    price = int(price)
-    volume = int(volume)
-    inserted = False
-
-    # Check if there's a matching timestamp and update accordingly
-    for row in lob_data_list:
-        if row['Timestamp'] == timestamp:
-            # Check bids and asks for the price, now correctly matching integers
-            if any(bid[0] == price for bid in row['Bid']):
-                row['Ask'].insert(0, [price, volume])
-            elif any(ask[0] == price for ask in row['Ask']):
-                row['Bid'].insert(0, [price, volume])
-            inserted = True
-            break
-
-    # If no matching timestamp, insert a new row
-    if not inserted:
-        insert_index = find_insert_index(timestamp)
-        new_row = {
-            'Timestamp': timestamp,
-            'Bid': [[price, volume]] + (lob_data_list[insert_index - 1]['Bid'] if insert_index > 0 else []),
-            'Ask': [[price, volume]] + (lob_data_list[insert_index - 1]['Ask'] if insert_index > 0 else [])
-        }
-        lob_data_list.insert(insert_index, new_row)
-
-
-# Iterate through each transaction in the tape data and merge, with correct data types
-for index, transaction in tape_data.iterrows():
-    merge_transaction(transaction)
-
-# Convert the updated LOB data back to a DataFrame
-updated_lob_df = pd.DataFrame(lob_data_list)
-
-updated_lob_df.to_csv('merged_lob2.csv', index=False)
+# Merge the tape and LOB data into a single DataFrame
+merged_df = merge_data(tape_df, lob_df)
+merged_df.to_csv('merged_lob.csv', index=False)
