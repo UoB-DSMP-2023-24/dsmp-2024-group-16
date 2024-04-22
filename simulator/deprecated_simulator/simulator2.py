@@ -9,8 +9,8 @@ from datetime import datetime, timedelta
 
 # Load the datasets
 predicted_tape_path = '../predicted_tape.csv'
-real_tape_path = '../Tapes/UoB_Set01_2025-01-02tapes.csv'
-lob_dataset_path = '../lob_full.csv'
+real_tape_path = '../../Tapes/UoB_Set01_2025-01-02tapes.csv'
+lob_dataset_path = '../../lob_full.csv'
 
 predicted_tape = pd.read_csv(predicted_tape_path)
 real_tape = pd.read_csv(real_tape_path, header=None, names=['timestamp', 'price', 'quantity'])

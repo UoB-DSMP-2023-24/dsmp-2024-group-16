@@ -11,8 +11,8 @@ import ast  # Importing for safe string literal evaluation
 
 # Load the data from CSV files
 predicted_tape = pd.read_csv('../predicted_tape.csv')
-real_tape = pd.read_csv('../Tapes/UoB_Set01_2025-01-02tapes.csv', header=None, names=['timestamp', 'price', 'quantity'])
-lob = pd.read_csv('../lob_full.csv')
+real_tape = pd.read_csv('../../Tapes/UoB_Set01_2025-01-02tapes.csv', header=None, names=['timestamp', 'price', 'quantity'])
+lob = pd.read_csv('../../lob_full.csv')
 
 # We need to convert the 'Bid' and 'Ask' columns from string representations of lists to actual lists
 lob['Bid'] = lob['Bid'].apply(ast.literal_eval)
