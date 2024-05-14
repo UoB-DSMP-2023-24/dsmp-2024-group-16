@@ -1,6 +1,0 @@
-By organizing the results of the data in the "tapes", a simple strategy was identified to define data that deviates too much from the real transaction as dirty data and to clean it up. The results show that there is too much dirty data, so such data may not be dirty data, but is real and does not need to be cleaned up.
-
-By studying the tapes data, it was determined that the highest trading price would not exceed 500 and the lowest trading price would not be less than 10, so defining less than 500 and more than 10 as reasonable data. However, the tapes data shows that the price is always decreasing, so the correct way to clean up the data should be to define a reasonable range of data for each day to clean up, but due to the large amount of data, this will lead to a huge amount of dirty data. Considering the fact that unreasonable offers do exist in real life, the data of LOBs will not be cleaned for the time being.
-
-
-data_cleaned URL: https://uob-my.sharepoint.com/:f:/g/personal/kk23819_bristol_ac_uk/EnX5jLL5vYFDtPS-D9ho_oYBIOiKLpxGzAA076DZ475YTw?e=QObcd9
